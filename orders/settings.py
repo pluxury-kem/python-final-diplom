@@ -37,6 +37,19 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    #Сторонние приложения
+    'rest_framework', #Django REST Framework
+    'rest_framework.authtoken', #Токены для API
+    'django_rest_passwordreset', #Сброс пароля
+    'drf_yasg', #Документация Swagger
+    'django_filters', #Фильтрация для API
+
+    #Локальные приложения
+    'users', #Пользователи
+    'shops', #Магазины
+    'products', #Товары
+    'orders', #Заказы
 ]
 
 MIDDLEWARE = [
@@ -115,8 +128,47 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'static' #Папка для медиа-файлов
+
+MEDIA_URL = '/media/' #URL для медиа-файлов
+MEDIA_ROOT = BASE_DIR / 'media' #Папка для медиа-файлов
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AUTH_USER_MODEL = 'users.User'
+
+REST_FRAMEWORK = {
+    # Классы аутентификации
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication', #Аутентификация по токенам
+        'rest_framework.authentication.SessionAuthentication', #Аутентификация по сессиям
+    ],
+    #Классы разрешений
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permission.IsAuthenticatedOrReadOnly', #Чтение для всех, а изменения - авторизованным
+    ],
+    #Классы фильтрации
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend', #Фильтрация по полям
+        'rest_framework.filters.SearchFilter', #Поиск
+        'rest_framework.filters.OrderingFilter', #Сортировка
+    ],
+    #Пагинация
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20, #Элементов на странице
+    #Ограничение количества запросов (троттлинг)
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',  #Для анонимных пользователей
+        'rest_framework.throttling.UserRateThrottle',  #Для авторизованных пользователей
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/day',  #100 запросов в день для анонимов
+        'user': '1000/day',  #1000 запросов в день для авторизованных
+    }
+}
+
+#Настройки email (для разработки)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' #Вывод писем в консоль
