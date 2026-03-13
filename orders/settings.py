@@ -148,7 +148,7 @@ REST_FRAMEWORK = {
     ],
     #Классы разрешений
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permission.IsAuthenticatedOrReadOnly', #Чтение для всех, а изменения - авторизованным
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly', #Чтение для всех, а изменения - авторизованным
     ],
     #Классы фильтрации
     'DEFAULT_FILTER_BACKENDS': [

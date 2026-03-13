@@ -49,7 +49,7 @@ class User(AbstractUser):
 
     username_validator = UnicodeUsernameValidator()
     username = models.CharField(
-        _('username'),
+        _('Логин'),
         max_length=150,
         validators=[username_validator],
         blank=True,
@@ -60,7 +60,7 @@ class User(AbstractUser):
     position = models.CharField(verbose_name='Должность', max_length=40, blank=True)
 
     is_active = models.BooleanField(
-        _('active'),
+        _('Активен'),
         default=False,
         help_text=_("Указание того, является ли пользователь активным"),
     )

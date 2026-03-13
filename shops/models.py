@@ -16,8 +16,7 @@ class Shop(models.Model):
         on_delete=models.CASCADE,
         related_name='shop'
     )
-    state = models.BooleanField(verbose_name="Стаус получения заказов", default=True)
-
+    state = models.BooleanField(verbose_name='Статус получения заказов', default=True)
 
     class Meta:
         verbose_name = 'Магазин'

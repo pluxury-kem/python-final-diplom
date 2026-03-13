@@ -1,3 +1,4 @@
+from typing import Any
 from django.db import models
 from shops.models import Shop
 
@@ -8,7 +9,7 @@ class Category(models.Model):
     """
     name = models.CharField(max_length=40, verbose_name='Название')
     shops = models.ManyToManyField(
-        Shop,
+        'shops.Shop',
         verbose_name='Магазины',
         related_name='categories',
         blank=True
@@ -16,7 +17,7 @@ class Category(models.Model):
 
 
     class Meta:
-        verbose_name = 'Категория',
+        verbose_name = 'Категория'
         verbose_name_plural = "Список категорий"
         ordering = ('-name',)
 
@@ -40,8 +41,8 @@ class Product(models.Model):
 
 
     class Meta:
-        verbose_name = 'Продукт'
-        verbose_name_plural = "Список продуктов"
+        verbose_name = 'Товар'
+        verbose_name_plural = "Список товаров"
         ordering = ('-name',)
 
     def __str__(self):
@@ -70,11 +71,10 @@ class ProductInfo(models.Model):
     )
     quantity = models.PositiveIntegerField(verbose_name='Количество')
     price = models.PositiveIntegerField(verbose_name='Цена')
-    price_rrc = models.PositiveIntegerField(verbose_name="Рекомендуемая розничная цена")
-
+    price_rrc = models.PositiveIntegerField(verbose_name='Рекомендуемая розничная цена')
 
     class Meta:
-        verbose_name = "Информация о продукте"
+        verbose_name = 'Информация о продукте'
         verbose_name_plural = "Информационный список о продуктах"
         constraints = [
             models.UniqueConstraint(

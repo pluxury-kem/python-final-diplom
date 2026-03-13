@@ -1,0 +1,15 @@
+shop: "Локальный тестовый магазин"
+categories:
+  - id: 1
+    name: "Тестовая категория"
+goods:
+  - id: 999
+    category: 1
+    name: "Тестовый товар"
+    model: "T-1000"
+    price: 1000
+    price_rrc: 1200
+    quantity: 5
+    parameters:
+      "Цвет": "Красный"
+      "Размер": "M"

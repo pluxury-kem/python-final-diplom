@@ -1,0 +1,40 @@
+shop: "Тестовый магазинчик"
+categories:
+  - id: 1
+    name: "Смартфоны"
+  - id: 2
+    name: "Ноутбуки"
+goods:
+  - id: 1001
+    category: 1
+    name: "Смартфон X100"
+    model: "X100"
+    price: 50000
+    price_rrc: 55000
+    quantity: 10
+    parameters:
+      "Экран": "6.5 дюймов"
+      "Память": "128 ГБ"
+      "Цвет": "Черный"
+  - id: 1002
+    category: 1
+    name: "Смартфон Y200"
+    model: "Y200"
+    price: 75000
+    price_rrc: 80000
+    quantity: 5
+    parameters:
+      "Экран": "6.7 дюймов"
+      "Память": "256 ГБ"
+      "Цвет": "Синий"
+  - id: 2001
+    category: 2
+    name: "Ноутбук Pro Laptop"
+    model: "PL-15"
+    price: 120000
+    price_rrc: 130000
+    quantity: 3
+    parameters:
+      "Процессор": "Intel i7"
+      "RAM": "16 ГБ"
+      "SSD": "512 ГБ"
