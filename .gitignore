@@ -6,6 +6,7 @@ __pycache__/
 *$py.class
 
 *.sqlite3
+en/
 env/
 
 ### Project specific ###

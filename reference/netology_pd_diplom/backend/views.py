@@ -522,7 +522,7 @@ class PartnerOrders(APIView):
     """
     Класс для получения заказов поставщиками
      Methods:
-    - get: Retrieve the orders associated with the authenticated partner.
+    - get: Retrieve the config associated with the authenticated partner.
 
     Attributes:
     - None
@@ -530,13 +530,13 @@ class PartnerOrders(APIView):
 
     def get(self, request, *args, **kwargs):
         """
-               Retrieve the orders associated with the authenticated partner.
+               Retrieve the config associated with the authenticated partner.
 
                Args:
                - request (Request): The Django request object.
 
                Returns:
-               - Response: The response containing the orders associated with the partner.
+               - Response: The response containing the config associated with the partner.
                """
         if not request.user.is_authenticated:
             return JsonResponse({'Status': False, 'Error': 'Log in required'}, status=403)
@@ -687,7 +687,7 @@ class OrderView(APIView):
     # получить мои заказы
     def get(self, request, *args, **kwargs):
         """
-               Retrieve the details of user orders.
+               Retrieve the details of user config.
 
                Args:
                - request (Request): The Django request object.
