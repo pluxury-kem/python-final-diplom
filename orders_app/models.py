@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import MinValueValidator
 from users.models import User
 from products.models import ProductInfo
 
@@ -34,9 +35,18 @@ class Contact(models.Model):
     class Meta:
         verbose_name = 'Контакт'
         verbose_name_plural = 'Контакты'
+        ordering = ['-id']
 
     def __str__(self):
-        return f"{self.city}, {self.street}, {self.house}"
+        address_parts = [self.city, self.street, f"д.{self.house}"]
+        if self.apartment:
+            address_parts.append(f"кв.{self.apartment}")
+        return ", ".join(address_parts)
+
+    @property
+    def full_address(self):
+        """Полный адрес одной строкой"""
+        return str(self)
 
 
 class Order(models.Model):
@@ -59,6 +69,7 @@ class Order(models.Model):
     contact = models.ForeignKey(
         Contact,
         verbose_name='Контакт',
+        related_name='orders',
         on_delete=models.SET_NULL,
         null=True,
         blank=True
@@ -70,7 +81,22 @@ class Order(models.Model):
         ordering = ['-dt']
 
     def __str__(self):
-        return f"Заказ №{self.id} от {self.dt.strftime('%d.%m.%Y')}"
+        return f"Заказ №{self.id} от {self.dt.strftime('%d.%m.%Y %H:%M')}"
+
+    @property
+    def total_price(self):
+        """Общая стоимость заказа"""
+        return sum(item.total_price for item in self.items.all())
+
+    @property
+    def total_quantity(self):
+        """Общее количество товаров в заказе"""
+        return sum(item.quantity for item in self.items.all())
+
+    @property
+    def order_number(self):
+        """Номер заказа (для красивого отображения)"""
+        return f"ORD-{self.id:06d}"
 
 
 class OrderItem(models.Model):
@@ -89,7 +115,18 @@ class OrderItem(models.Model):
         related_name='order_items',
         on_delete=models.CASCADE
     )
-    quantity = models.PositiveIntegerField(verbose_name='Количество')
+    quantity = models.PositiveIntegerField(
+        verbose_name='Количество',
+        validators=[MinValueValidator(1)]
+    )
+    price_at_order = models.DecimalField(
+        verbose_name='Цена на момент заказа',
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Фиксируется цена товара в момент оформления заказа'
+    )
 
     class Meta:
         verbose_name = 'Позиция заказа'
@@ -103,3 +140,20 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product_info.product.name} - {self.quantity} шт."
+
+    def save(self, *args, **kwargs):
+        #При создании позиции фиксируем текущую цену товара
+        if not self.price_at_order and self.product_info:
+            self.price_at_order = self.product_info.price
+        super().save(*args, **kwargs)
+
+    @property
+    def total_price(self):
+        """Стоимость позиции"""
+        price = self.price_at_order or self.product_info.price
+        return price * self.quantity
+
+    @property
+    def shop(self):
+        """Магазин, из которого товар"""
+        return self.product_info.shop
