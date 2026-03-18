@@ -80,6 +80,10 @@ class Order(models.Model):
         verbose_name_plural = 'Заказы'
         ordering = ['-dt']
 
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(args, kwargs)
+        self.id = None
+
     def __str__(self):
         return f"Заказ №{self.id} от {self.dt.strftime('%d.%m.%Y %H:%M')}"
 

@@ -2,6 +2,7 @@ from django.http import JsonResponse
 from django.core.mail import send_mail
 from django.conf import settings
 from django.db import transaction
+from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import TokenAuthentication
@@ -11,6 +12,8 @@ from .serializers import (
     OrderConfirmSerializer, OrderStatusUpdateSerializer
 )
 from products.models import ProductInfo
+
+User = get_user_model()
 
 
 class ContactView(APIView):
@@ -182,34 +185,145 @@ class OrderConfirmView(APIView):
             }, status=400)
 
         contact_id = serializer.validated_data['contact_id']
-        contact = Contact.objects.get(id=contact_id, user=request.user)
 
-        with transaction.atomic():
-            #Обновляем заказ
-            basket.state = 'new'
-            basket.contact = contact
-            basket.save()
+        try:
+            with transaction.atomic():
+                basket = Order.objects.select_for_update().get(
+                    id=basket.id
+                )
 
-            #уменьшаем количество товаров на складе
-            for item in basket.items.all():
-                product_info = item.product_info
-                if product_info.quantity >= item.quantity:
-                    product_info.quantity -= item.quantity
-                    product_info.save()
-                else:
-                    # Если товара недостаточно, отменяем транзакцию
-                    raise Exception(f"Недостаточно товара {product_info.product.name}")
+                if basket.state != 'basket':
+                    return JsonResponse({
+                        'Status': False,
+                        'Error': 'Заказ уже оформлен'
+                    }, status=400)
 
-        #Отправляем email с подтверждением
-        self._send_confirmation_email(request.user, basket, contact)
+                contact = Contact.objects.select_for_update().get(
+                    id=contact_id,
+                    user=request.user
+                )
 
-        #Возвращаем информацию о созданном заказе
-        result_serializer = OrderSerializer(basket)
-        return JsonResponse({
-            'Status': True,
-            'Message': 'Заказ успешно оформлен',
-            'order': result_serializer.data
-        })
+                #Обновляем заказ
+                basket.state = 'new'
+                basket.contact = contact
+                basket.save()
+
+                #уменьшаем количество товаров на складе
+                insufficient_goods = []
+                for item in basket.items.all():
+                    try:
+                        product_info = ProductInfo.objects.select_for_update().get(
+                            id=item.product_info.id
+                        )
+
+                        if product_info.quantity >= item.quantity:
+                            product_info.quantity -= item.quantity
+                            product_info.save()
+                        else:
+                            insufficient_goods.append(
+                                f"{product_info.product.name} (доступно: {product_info.quantity}, "
+                                f"запрошено: {item.quantity})"
+                            )
+                    except ProductInfo.DoesNotExist:
+                        insufficient_goods.append(f"Товар ID {item.product_info.id} не найден")
+                            #Если товара недостаточно, отменяем транзакцию
+
+                if insufficient_goods:
+                    raise Exception(f"Недостаточно товаров: {', '.join(insufficient_goods)}")
+
+            #Отправляем email с подтверждением
+            self._send_confirmation_email(request.user, basket, contact)
+
+            #Отправляем email администратору
+            self._send_admin_notification(basket)
+
+            #Возвращаем информацию о созданном заказе
+            result_serializer = OrderSerializer(basket)
+            return JsonResponse({
+                'Status': True,
+                'Message': 'Заказ успешно оформлен',
+                'order': result_serializer.data
+            })
+
+        except Contact.DoesNotExist:
+            return JsonResponse({
+                'Status': False,
+                'Error': 'Контакт не найден'
+            }, status=404)
+        except Exception as e:
+            return JsonResponse({
+                'Status': False,
+                'Error': str(e)
+            }, status=400)
+
+    def _send_admin_notification(self, order):
+        """Отправка уведомления администратору о новом заказе"""
+        #Получаем всех администраторов
+        admins = User.objects.filter(is_staff=True, is_active=True)
+        admin_emails = list(admins.values_list('email', flat=True))
+
+        if not admin_emails:
+            #Если нет администраторов, используем email из настроек
+            admin_emails = [settings.ADMIN_EMAIL] if hasattr(settings, 'ADMIN_EMAIL') else []
+
+        if not admin_emails:
+            print("Нет email администраторов для уведомления")
+            return
+
+        items_list = []
+        total_sum = 0
+
+        for item in order.items.all():
+            price = item.price_at_order or item.product_info.price
+            item_sum = price * item.quantity
+            total_sum += item_sum
+
+            items_list.append(
+                f"{item.product_info.product.name} "
+                f"(магазин: {item.product_info.shop.name}) - "
+                f"{item.quantity} шт. х {price} руб. = {item_sum} руб."
+            )
+
+        items_text = "\n".join(items_list)
+
+        subject = f"Новый заказ №{order.order_number}"
+        message = f"""
+Уважаемый администратор!
+
+Поступил новый заказ № {order.order_number}.
+
+ИНФОРМАЦИЯ О ЗАКАЗЕ:
+Номер заказа: {order.order_number}
+Дата и время: {order.dt.strftime('%d.%m.%Y %H:%M')}
+Покупатель: {order.user.email} ({order.user.first_name} {order.user.last_name})
+Телефон: {order.contact.phone if order.contact else 'Не указан'}
+
+АДРЕС ДОСТАВКИ:
+{order.contact.full_address if order.contact else 'Не указан'}
+
+СОСТАВ ЗАКАЗА:
+{items_text}
+
+ИТОГОВАЯ СУММА: {total_sum} руб.
+
+Ссылка на заказ в админке:
+{settings.SITE_URL}/admin/orders_app/order/{order.id}/
+
+---
+Это автоматическое уведомление. Пожалуйста, не отвечайте на него.
+"""
+
+        try:
+            send_mail(
+                subject,
+                message,
+                settings.EMAIL_HOST_USER or 'noreply@shop.example',
+                admin_emails,
+                fail_silently=False,
+            )
+            print(f"Уведомление отправлено администраторам: {admin_emails}")
+        except Exception as e:
+            print(f"Ошибка отправки email администратору {e}")
 
     def _send_confirmation_email(self, user, order, contact):
         """Отправка email с подтверждением заказа"""
